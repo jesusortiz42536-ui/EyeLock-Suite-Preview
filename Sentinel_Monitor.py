@@ -2,9 +2,9 @@ import psutil
 import time
 import os
 import subprocess
-import msvcrt # Librería para detectar teclas sin detener el programa (Solo Windows)
+import msvcrt
 
-# --- CONFIGURACIÓN DE PODER ---
+# --- CONFIGURACIÓN DE PODER KIMAD TECH ---
 LOG_FILE = "sentinel_firewall.log"
 VERDE = "\033[92m"
 ROJO = "\033[91m"
@@ -23,26 +23,34 @@ def banner():
     ██║  ██╗██║██║ ╚═╝ ██║██║  ██║██████╔╝       ██║   ██║  ██║███████╗    ╚███╔███╔╝██║  ██║███████╗███████╗
     ╚═╝  ╚═╝╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═════╝        ╚═╝   ╚═╝  ╚═╝╚══════╝     ╚══╝╚══╝ ╚═╝  ╚═╝╚══════╝╚══════╝
     """)
-    print(f"{CYAN}    [ SENTINEL v3.1 - TACTICAL FIREWALL TRIGGER / BY DR. ENCRYPT ]{RESET}\n")
+    print(f"{CYAN}    [ SENTINEL v3.2 - FORCE ADMIN & DEBUG / BY DR. ENCRYPT ]{RESET}\n")
 
 def bloquear_ip(ip):
-    """Ejecuta el comando de Windows Firewall para banear la IP de forma permanente."""
-    nombre_regla = f"KIMAD_BLOCK_{ip.replace('.', '_')}"
-    # Comando netsh para crear la regla de bloqueo
-    comando = f'netsh advfirewall firewall add rule name="{nombre_regla}" dir=in action=block remoteip={ip}'
+    """Ejecuta el comando de Firewall con reporte de error detallado."""
+    tag = ip.replace('.', '_')
+    nombre_rule = f"KIMAD_SENTINEL_{tag}"
+    comando = f'netsh advfirewall firewall add rule name="{nombre_rule}" dir=in action=block remoteip={ip}'
+    
+    print(f"\n{AMARILLO}[*] Intentando levantar muro en Firewall...{RESET}")
     
     try:
-        subprocess.run(comando, shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        alerta = f"\n{ROJO}[🔒 BLOQUEADO] IP {ip} ha sido desterrada del sistema.{RESET}"
-        print(alerta)
-        with open(LOG_FILE, "a") as f:
-            f.write(f"{time.ctime()} - {alerta}\n")
+        # Ejecutamos y capturamos la respuesta de Windows
+        resultado = subprocess.run(comando, shell=True, capture_output=True, text=True)
+        
+        if resultado.returncode == 0:
+            print(f"{ROJO}[🔒 ÉXITO] IP {ip} desterrada permanentemente.{RESET}")
+            with open(LOG_FILE, "a") as f:
+                f.write(f"{time.ctime()} - BLOQUEO EXITOSO: {ip}\n")
+        else:
+            # Si Windows dice que no, mostramos el por qué exacto
+            print(f"{ROJO}[!] ERROR DE WINDOWS: {resultado.stdout.strip()}{RESET}")
+            
     except Exception as e:
-        print(f"\n{ROJO}[!] ERROR: Asegúrate de ejecutar como ADMINISTRADOR.{RESET}")
+        print(f"{ROJO}[!] ERROR CRÍTICO DEL SCRIPT: {e}{RESET}")
 
 def monitorear_red():
     banner()
-    print(f"{AMARILLO}[*] Escaneo profundo activo. Presiona 'B' cuando veas una IP para bloquearla.{RESET}")
+    print(f"{AMARILLO}[*] Escaneo táctico iniciado. Presiona 'B' para abrir el Gatillo de Bloqueo.{RESET}")
     print(f"{CYAN}{'PID':<8} {'PROGRAMA':<20} {'REMOTE IP':<18} {'ESTADO'}{RESET}")
     print("-" * 80)
     
@@ -62,17 +70,14 @@ def monitorear_red():
                         except:
                             prog = "Unknown"
 
-                        # Imprime la línea de conexión encontrada
                         print(f"{VERDE}{pid:<8} {prog[:18]:<20} {ip_remota:<18} {conn.status}{RESET}")
-                        
-                        # Guardamos en vistas para no repetir en el scroll
                         ips_vistas.add(ip_remota)
 
-            # Lógica de detección de teclado (Gatillo)
+            # Detector de teclado para el bloqueo
             if msvcrt.kbhit():
                 tecla = msvcrt.getch().decode('utf-8').upper()
                 if tecla == 'B':
-                    target = input(f"\n{AMARILLO}[?] IP A BLOQUEAR: {RESET}")
+                    target = input(f"\n{AMARILLO}[❓] IP OBJETIVO PARA BLOQUEO: {RESET}")
                     if target:
                         bloquear_ip(target)
                         print(f"{VERDE}[+] Monitor reanudado...{RESET}\n")
@@ -83,5 +88,4 @@ def monitorear_red():
         print(f"\n{ROJO}[!] Sentinel desactivado. Regresando al búnker.{RESET}")
 
 if __name__ == "__main__":
-    # Verificación de privilegios simple
     monitorear_red()
